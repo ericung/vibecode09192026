@@ -1,63 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 
-type OpenWeatherResponse = {
-  name: string;
-  sys: { country: string };
-  main: { temp: number; feels_like: number; humidity: number };
-  weather: Array<{ main: string; description: string }>;
-  wind: { speed: number };
-};
+import { OpenWeatherError } from "@/lib/server/openweather";
+import { GeocodingError } from "@/lib/server/geocoding";
+import {
+  getWeatherReportByCity,
+  getWeatherReportByCoords,
+} from "@/lib/server/weather-service";
 
 export async function GET(request: NextRequest) {
-  const city = request.nextUrl.searchParams.get("city")?.trim();
-  const apiKey = process.env.OPENWEATHER_API_KEY;
-
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "Weather service is not configured." },
-      { status: 500 },
-    );
-  }
-
-  if (!city) {
-    return NextResponse.json({ error: "Please enter a city." }, { status: 400 });
-  }
-
-  const url = new URL("https://api.openweathermap.org/data/2.5/weather");
-  url.searchParams.set("q", city);
-  url.searchParams.set("appid", apiKey);
-  url.searchParams.set("units", "metric");
+  const params = request.nextUrl.searchParams;
+  const city = params.get("city")?.trim() ?? "";
+  const latRaw = params.get("lat");
+  const lonRaw = params.get("lon");
 
   try {
-    const response = await fetch(url, { next: { revalidate: 600 } });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return NextResponse.json({ error: "City not found." }, { status: 404 });
-      }
-      return NextResponse.json(
-        { error: "Unable to reach the weather service." },
-        { status: response.status },
-      );
+    // Coordinates take precedence so geolocated positions work without a city name.
+    // Optional city/country hints label the report without an extra reverse lookup.
+    if (latRaw !== null || lonRaw !== null) {
+      const latitude = Number(latRaw);
+      const longitude = Number(lonRaw);
+      const report = await getWeatherReportByCoords({
+        latitude,
+        longitude,
+        city: params.get("city") ?? undefined,
+        country: params.get("country") ?? undefined,
+      });
+      return NextResponse.json(report);
     }
-
-    const data = (await response.json()) as OpenWeatherResponse;
-    const current = data.weather[0];
-
-    return NextResponse.json({
-      city: data.name,
-      country: data.sys.country,
-      temperature: Math.round(data.main.temp),
-      feelsLike: Math.round(data.main.feels_like),
-      humidity: data.main.humidity,
-      windSpeed: Math.round(data.wind.speed * 3.6),
-      condition: current?.main ?? "Unknown",
-      description: current?.description ?? "No description available",
-    });
-  } catch {
+    const report = await getWeatherReportByCity(city);
+    return NextResponse.json(report);
+  } catch (error) {
+    if (error instanceof OpenWeatherError || error instanceof GeocodingError) {
+      const status = error.status;
+      const message =
+        status === 500 || status === 502
+          ? "Unable to reach the weather service."
+          : error.message;
+      return NextResponse.json({ error: message }, { status });
+    }
     return NextResponse.json(
       { error: "Unable to reach the weather service." },
-      { status: 502 },
+      { status: 502 }
     );
   }
 }
