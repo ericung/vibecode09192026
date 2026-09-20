@@ -101,10 +101,11 @@ export default function Home() {
         setNotice("Search for a city to see the weather.");
         return;
       }
+      // handleSelect clears any notice, so set the fallback notice after it.
+      handleSelect(result.location);
       if (result.source === "recent") {
         setNotice(friendlyGeolocationNotice());
       }
-      handleSelect(result.location);
     }
 
     void startupResolve();
