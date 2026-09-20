@@ -21,7 +21,7 @@ export type HourlyForecast = {
   description: string;
 };
 
-/** One day of the 7-day forecast. */
+/** One day of the daily forecast (free tier: ~5 days from 3-hourly data). */
 export type DailyForecast = {
   /** Calendar date as YYYY-MM-DD. */
   date: string;
@@ -35,7 +35,8 @@ export type DailyForecast = {
 
 /**
  * Application-specific weather report: current conditions plus today's
- * high/low, 48 hours of hourly weather, and a 7-day forecast.
+ * high/low, 48 hours of hourly weather (interpolated from 3-hourly data),
+ * and a daily forecast (free tier covers ~5 days).
  * `isStale` marks data served from cache after a failed refresh.
  */
 export type WeatherReport = Weather & {

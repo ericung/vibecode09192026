@@ -1,22 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CitySearch } from "@/components/city-search";
+import { CurrentWeather } from "@/components/current-weather";
+import { DailyForecastList } from "@/components/daily-forecast";
+import { ErrorState } from "@/components/error-state";
+import { HourlyForecastList } from "@/components/hourly-forecast";
 import { RecentLocations } from "@/components/recent-locations";
-import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { LocatingSkeleton, WeatherSkeleton } from "@/components/weather-skeletons";
+import {
+  friendlyGeolocationNotice,
+  friendlyWeatherError,
+} from "@/lib/friendly-errors";
 import {
   getCurrentPositionAsLocation,
   resolveInitialLocation,
 } from "@/lib/geolocation";
-import { formatLocationLabel } from "@/lib/location";
 import { reverseGeocodeLocation } from "@/lib/location-search";
 import {
   addRecentLocation,
   loadRecentLocations,
   saveRecentLocations,
 } from "@/lib/recent-locations";
-import { fetchWeatherForLocation, weatherEmoji } from "@/lib/weather";
+import { fetchWeatherForLocation } from "@/lib/weather";
 import type { WeatherLocation } from "@/types/location";
 import type { WeatherReport } from "@/types/weather";
 
@@ -33,24 +41,37 @@ export default function Home() {
   const [startup, setStartup] = useState<StartupState>("locating");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  // Guard against duplicate in-flight weather requests (Prompt 14).
+  // `loading` state alone is async, so a ref gives a synchronous guard.
+  const loadingRef = useRef(false);
 
   const loadWeather = useCallback(async (location: WeatherLocation) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setError("");
     try {
+      // Respects the server 15-minute cache via /api/weather — no
+      // cache-busting params unless explicitly configured otherwise.
       const data = await fetchWeatherForLocation(location);
       setWeather(data);
     } catch (requestError) {
       setWeather(null);
-      setError(requestError instanceof Error ? requestError.message : "Could not load weather.");
+      setError(friendlyWeatherError(requestError));
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, []);
 
+  const handleRefresh = useCallback(() => {
+    if (selected) void loadWeather(selected);
+  }, [selected, loadWeather]);
+
   const handleSelect = useCallback(
     (location: WeatherLocation) => {
       setSelected(location);
+      setNotice("");
       setRecents((prev) => {
         const next = addRecentLocation(prev, location);
         saveRecentLocations(next);
@@ -81,7 +102,7 @@ export default function Home() {
         return;
       }
       if (result.source === "recent") {
-        setNotice("Location unavailable — showing your most recent location.");
+        setNotice(friendlyGeolocationNotice());
       }
       handleSelect(result.location);
     }
@@ -97,23 +118,26 @@ export default function Home() {
     saveRecentLocations([]);
   }
 
-  const showSearchPrompt = startup === "ready" && !selected && !loading;
+  const showSearchPrompt = startup === "ready" && !selected && !loading && !error;
 
   return (
     <main className="weather-shell">
-      <section className="weather-card">
+      <section className="weather-card" aria-busy={loading || startup === "locating"}>
         <div className="card-header">
-          <div>
+          <div className="min-w-0">
             <p className="eyebrow">LIVE CONDITIONS</p>
             <h1>Weather, wherever you are.</h1>
             <p className="subtitle">Simple, current conditions powered by OpenWeather.</p>
           </div>
-          <span className="sun-mark" aria-hidden="true">
-            ✦
-          </span>
+          <div className="flex shrink-0 items-start gap-3">
+            <span className="sun-mark" aria-hidden="true">
+              ✦
+            </span>
+            <ThemeToggle />
+          </div>
         </div>
 
-        <div className="mt-8 flex flex-col gap-4">
+        <div className="mt-6 flex min-w-0 flex-col gap-4 sm:mt-8">
           <CitySearch onSelect={handleSelect} autoFocus={showSearchPrompt} />
           <RecentLocations
             locations={recents}
@@ -123,69 +147,40 @@ export default function Home() {
           />
         </div>
 
-        <div className="mt-6">
+        <div className="mt-6 min-w-0 max-w-full" aria-live="polite">
           {startup === "locating" ? (
-            <div className="loading-message">Detecting your location...</div>
+            <LocatingSkeleton />
           ) : error ? (
-            <div className="flex flex-col items-center gap-4 py-6 text-center">
-              <div className="error-message min-h-0" role="alert">
-                {error}
-              </div>
-              {selected ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={loading}
-                  onClick={() => void loadWeather(selected)}
-                >
-                  {loading ? "Retrying..." : "Try again"}
-                </Button>
-              ) : null}
-            </div>
+            <ErrorState
+              message={error}
+              hint={
+                selected
+                  ? "Your recent locations are saved below — try another city or retry."
+                  : "Try searching for a city above."
+              }
+              onRetry={selected ? () => void loadWeather(selected) : undefined}
+              retrying={loading}
+            />
           ) : loading && !weather ? (
-            <div className="loading-message">Finding current conditions...</div>
+            <WeatherSkeleton />
           ) : weather && selected ? (
             <div className={`weather-content ${loading ? "is-refreshing" : ""}`}>
-              {weather.isStale ? (
-                <p className="mb-4 rounded-md border px-3 py-2 text-center text-sm" role="status">
-                  Data may be outdated — live update failed.
+              {notice ? (
+                <p className="mb-4 rounded-md border border-input bg-muted/50 px-3 py-2 text-center text-xs text-muted-foreground" role="status">
+                  {notice}
                 </p>
               ) : null}
-              <div className="location-row">
-                <div>
-                  <p className="location">
-                    {selected.city}, {weather.country}
-                  </p>
-                  <p className="updated">{formatLocationLabel(selected)}</p>
-                </div>
-                <span className="weather-emoji" aria-label={weather.condition}>
-                  {weatherEmoji(weather.condition)}
-                </span>
-              </div>
-
-              <div className="temperature-row">
-                <span className="temperature">{weather.temperature}</span>
-                <span className="degree">°C</span>
-                <div className="condition">
-                  <strong>{weather.condition}</strong>
-                  <span>{weather.description}</span>
-                </div>
-              </div>
-
-              <div className="details-grid">
-                <div>
-                  <span>Feels like</span>
-                  <strong>{weather.feelsLike}°</strong>
-                </div>
-                <div>
-                  <span>Humidity</span>
-                  <strong>{weather.humidity}%</strong>
-                </div>
-                <div>
-                  <span>Wind</span>
-                  <strong>{weather.windSpeed} km/h</strong>
-                </div>
-              </div>
+              <span className="sr-only" role="status">
+                {loading ? "Refreshing weather…" : "Weather up to date"}
+              </span>
+              <CurrentWeather
+                report={weather}
+                location={selected}
+                loading={loading}
+                onRefresh={handleRefresh}
+              />
+              <HourlyForecastList hourly={weather.hourly} />
+              <DailyForecastList daily={weather.daily} />
             </div>
           ) : showSearchPrompt ? (
             <div className="loading-message" role="status">

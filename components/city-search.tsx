@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatLocationLabel } from "@/lib/location";
+import { friendlyLocationError } from "@/lib/friendly-errors";
 import { searchLocations } from "@/lib/location-search";
 import type { WeatherLocation } from "@/types/location";
 import { cn } from "@/lib/utils";
@@ -64,9 +65,7 @@ export function CitySearch({ onSelect, autoFocus, placeholder }: CitySearchProps
         if (requestId.current !== id) return;
         setSuggestions([]);
         setOpen(true);
-        setSearchError(
-          error instanceof Error ? error.message : "Could not search locations."
-        );
+        setSearchError(friendlyLocationError(error));
       } finally {
         if (requestId.current === id) setSearching(false);
       }
@@ -114,7 +113,7 @@ export function CitySearch({ onSelect, autoFocus, placeholder }: CitySearchProps
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center">
         <label htmlFor="city-search" className="sr-only">
           Search for a city
         </label>
@@ -135,14 +134,22 @@ export function CitySearch({ onSelect, autoFocus, placeholder }: CitySearchProps
             highlighted >= 0 ? `${listboxId}-option-${highlighted}` : undefined
           }
           autoFocus={autoFocus}
+          className="min-[420px]:flex-1"
         />
-        <Button type="button" disabled={searching || query.trim().length < 2}>
-          {searching ? "Searching" : "Search"}
+        <Button type="button" disabled={searching || query.trim().length < 2} aria-live="polite" className="shrink-0 min-[420px]:w-auto w-full">
+          {searching ? (
+            <span className="inline-flex items-center gap-2">
+              <span aria-hidden="true" className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Searching
+            </span>
+          ) : (
+            "Search"
+          )}
         </Button>
       </div>
 
       {open ? (
-        <div className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-md border border-input bg-popover text-popover-foreground shadow-md">
+        <div className="absolute inset-x-0 top-full z-20 mt-2 max-h-[min(320px,50vh)] overflow-y-auto rounded-md border border-input bg-popover text-popover-foreground shadow-md">
           {searchError && suggestions.length === 0 && !searching ? (
             <p className="px-3 py-3 text-sm text-muted-foreground" role="status">
               {searchError}
