@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 import { Button } from "@/components/ui/button";
 import { weatherEmoji } from "@/lib/weather";
 import type { WeatherLocation } from "@/types/location";
@@ -28,8 +30,9 @@ export function formatUpdatedAt(iso: string): string {
  * Main current-weather section (Phase 4, Prompt 11).
  * Above-the-fold essentials only: city, temperature, condition,
  * today's high/low, last-updated timestamp, and refresh control.
+ * Memoized: parent re-renders on recents/notice changes without new data.
  */
-export function CurrentWeather({ report, location, loading, onRefresh }: CurrentWeatherProps) {
+export const CurrentWeather = memo(function CurrentWeather({ report, location, loading, onRefresh }: CurrentWeatherProps) {
   return (
     <section aria-label="Current weather" className="w-full">
       {report.isStale ? (
@@ -96,4 +99,4 @@ export function CurrentWeather({ report, location, loading, onRefresh }: Current
       </div>
     </section>
   );
-}
+});

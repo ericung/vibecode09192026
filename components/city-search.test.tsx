@@ -98,4 +98,21 @@ describe("CitySearch", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ city: "Parma" }));
   });
+
+  test("Search button confirms the first suggestion", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          locations: [{ city: "Paris", country: "FR", latitude: 48.85, longitude: 2.35 }],
+        })
+      )
+    );
+    const onSelect = vi.fn();
+    render(<CitySearch onSelect={onSelect} />);
+    await typeQuery("par");
+    expect(screen.getByRole("listbox")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ city: "Paris" }));
+  });
 });

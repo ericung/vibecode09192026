@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 import { weatherEmoji } from "@/lib/weather";
 import type { HourlyForecast } from "@/types/weather";
 
@@ -20,8 +22,10 @@ type HourlyForecastProps = {
 /**
  * 48-hour forecast strip (Phase 4, Prompt 12).
  * Horizontal scroll, one compact cell per hour: time, icon, temperature.
+ * Memoized: hourly array identity only changes on fresh data, so refresh
+ * loading toggles don't re-render all 48 cells.
  */
-export function HourlyForecastList({ hourly }: HourlyForecastProps) {
+export const HourlyForecastList = memo(function HourlyForecastList({ hourly }: HourlyForecastProps) {
   if (hourly.length === 0) return null;
 
   return (
@@ -55,4 +59,4 @@ export function HourlyForecastList({ hourly }: HourlyForecastProps) {
       </ul>
     </section>
   );
-}
+});

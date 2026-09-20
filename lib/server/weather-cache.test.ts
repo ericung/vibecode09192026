@@ -79,4 +79,20 @@ describe("getCachedWeather (stale fallback)", () => {
   test("returns null when nothing was cached", () => {
     expect(getCachedWeather("9.9999,9.9999")).toBeNull();
   });
+
+  test("bounds memory by evicting the oldest entry past capacity", () => {
+    for (let i = 0; i < 210; i++) {
+      setCachedWeather(weatherCacheKey(i, 0), makeReport(`City${i}`), NOW + i);
+    }
+    expect(getCachedWeather(weatherCacheKey(0, 0))).toBeNull();
+    expect(getCachedWeather(weatherCacheKey(209, 0))?.city).toBe("City209");
+  });
+
+  test("prunes expired entries instead of evicting live ones", () => {
+    setCachedWeather(weatherCacheKey(1, 1), makeReport("Expired"), NOW - WEATHER_TTL_MS - 1);
+    for (let i = 0; i < 200; i++) {
+      setCachedWeather(weatherCacheKey(10 + i, 0), makeReport(`City${i}`), NOW);
+    }
+    expect(getCachedWeather(weatherCacheKey(10, 0))?.city).toBe("City0");
+  });
 });

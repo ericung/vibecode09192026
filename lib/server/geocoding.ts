@@ -54,7 +54,9 @@ export async function searchLocations(query: string, limit = 5): Promise<Weather
 
   let response: Response;
   try {
-    response = await fetch(url);
+    // `cache: "no-store"` so Next.js does not cache upstream responses —
+    // location results are governed by UI debouncing, not framework cache.
+    response = await fetch(url, { cache: "no-store" });
   } catch {
     throw new GeocodingError("Unable to reach the location service.", 502);
   }
@@ -88,7 +90,8 @@ export async function reverseGeocode(
 
   let response: Response;
   try {
-    response = await fetch(url);
+    // `cache: "no-store"` so Next.js does not cache upstream responses.
+    response = await fetch(url, { cache: "no-store" });
   } catch {
     throw new GeocodingError("Unable to reach the location service.", 502);
   }

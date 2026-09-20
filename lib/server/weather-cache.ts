@@ -13,6 +13,9 @@ type CacheEntry = {
 
 const store = new Map<string, CacheEntry>();
 
+/** Bound the in-memory cache so a long-lived server never grows without limit. */
+const MAX_CACHE_ENTRIES = 200;
+
 /** Cache key for coordinates, rounded so nearby requests share entries. */
 export function weatherCacheKey(latitude: number, longitude: number): string {
   return `${Number(latitude).toFixed(4)},${Number(longitude).toFixed(4)}`;
@@ -42,6 +45,15 @@ export function setCachedWeather(
   data: WeatherReport,
   now: number = Date.now()
 ): void {
+  // Prune expired entries first so the bound only evicts live entries.
+  for (const [storedKey, entry] of store) {
+    if (entry.expiresAt <= now) store.delete(storedKey);
+  }
+  if (!store.has(key) && store.size >= MAX_CACHE_ENTRIES) {
+    // Evict the oldest entry (Map preserves insertion order).
+    const oldest = store.keys().next();
+    if (!oldest.done) store.delete(oldest.value);
+  }
   store.set(key, { data, expiresAt: now + WEATHER_TTL_MS });
 }
 

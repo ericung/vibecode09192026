@@ -114,10 +114,10 @@ export default function Home() {
     };
   }, [handleSelect]);
 
-  function handleClearRecents() {
+  const handleClearRecents = useCallback(() => {
     setRecents([]);
     saveRecentLocations([]);
-  }
+  }, []);
 
   const showSearchPrompt = startup === "ready" && !selected && !loading && !error;
 

@@ -54,13 +54,16 @@ afterEach(() => {
 });
 
 describe("page loading and error states", () => {
-  test("shows a locating skeleton on startup", () => {
+  test("shows a locating skeleton on startup", async () => {
     denyGeolocation();
     vi.stubGlobal("fetch", stubFetch(() => new Promise(() => {})));
     render(<Page />);
     expect(
       screen.getByRole("status", { name: /detecting your location/i })
     ).toBeDefined();
+    // Let the denied-geolocation startup effect settle (it falls back to
+    // the search prompt) so async updates stay inside act().
+    await screen.findByText(/search for a city/i);
   });
 
   test("loads weather after geolocation and shows a stale banner when outdated", async () => {

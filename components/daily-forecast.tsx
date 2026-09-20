@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 import { weatherEmoji } from "@/lib/weather";
 import type { DailyForecast } from "@/types/weather";
 
@@ -21,8 +23,10 @@ type DailyForecastProps = {
 /**
  * Daily forecast (free tier covers ~5 days from 3-hourly data).
  * One row per day: day, icon/condition, high/low, precipitation probability.
+ * Memoized: same rationale as the hourly list — skip re-renders on
+ * refresh loading toggles that keep the same daily data.
  */
-export function DailyForecastList({ daily }: DailyForecastProps) {
+export const DailyForecastList = memo(function DailyForecastList({ daily }: DailyForecastProps) {
   if (daily.length === 0) return null;
 
   return (
@@ -62,4 +66,4 @@ export function DailyForecastList({ daily }: DailyForecastProps) {
       </ul>
     </section>
   );
-}
+});

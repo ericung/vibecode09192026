@@ -124,8 +124,8 @@ function middaySlot(slots: ForecastSlotRaw[]): ForecastSlotRaw {
   let best = slots[0];
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const slot of slots) {
-    const hours = new Date(slot.dt * 1000).getUTCHours() +
-      new Date(slot.dt * 1000).getUTCMinutes() / 60;
+    const date = new Date(slot.dt * 1000);
+    const hours = date.getUTCHours() + date.getUTCMinutes() / 60;
     const distance = Math.abs(hours - 12);
     if (distance < bestDistance) {
       bestDistance = distance;

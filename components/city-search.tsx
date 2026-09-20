@@ -91,6 +91,13 @@ export function CitySearch({ onSelect, autoFocus, placeholder }: CitySearchProps
     onSelect(location);
   }
 
+  function handleSearchClick() {
+    // The debounced effect already searches as the user types; the button
+    // confirms the current best match so it never appears dead.
+    const target = suggestions[highlighted] ?? suggestions[0];
+    if (target) select(target);
+  }
+
   function handleKeyDown(event: React.KeyboardEvent) {
     if (!open || suggestions.length === 0) {
       if (event.key === "Escape") setOpen(false);
@@ -136,7 +143,13 @@ export function CitySearch({ onSelect, autoFocus, placeholder }: CitySearchProps
           autoFocus={autoFocus}
           className="min-[420px]:flex-1"
         />
-        <Button type="button" disabled={searching || query.trim().length < 2} aria-live="polite" className="shrink-0 min-[420px]:w-auto w-full">
+        <Button
+          type="button"
+          disabled={searching || query.trim().length < 2}
+          aria-live="polite"
+          className="shrink-0 min-[420px]:w-auto w-full"
+          onClick={handleSearchClick}
+        >
           {searching ? (
             <span className="inline-flex items-center gap-2">
               <span aria-hidden="true" className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
